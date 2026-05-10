@@ -1,0 +1,159 @@
+════════════════════════════════════════════════════════════════════
+  Ksat Gang 작업 스케줄러 가이드
+════════════════════════════════════════════════════════════════════
+
+[등록되는 작업 2개]
+
+  1) KsatGang_Daily_Analysis   매일 19:00
+     - collector.py daily       (KRX 일별 OHLCV 수집)
+     - filter.py                (관리종목/거래정지/저가주 제외)
+     - dante_strategy.py daily  (지표 갱신 + scan + scan_v4)
+     - calculator.py            (분할매수/손절/목표가 계산)
+
+  2) KsatGang_Daily_Notify     매일 08:30
+     - notifier.py              (candidates_v4.json → 텔레그램 발송)
+
+
+[Python 경로]
+  C:\Users\sji48\AppData\Local\Programs\Python\Python311\python.exe
+
+
+[작업 동작 특성]
+
+  ✅ 컴퓨터 켜져 있을 때만 실행 (WakeToRun = False)
+     → 잠자기/꺼짐 상태면 그 회차 스킵, 자동 wake 없음
+
+  ✅ 시간 놓쳐도 따라가기 안 함 (StartWhenAvailable = False)
+     → 19:00 에 컴퓨터 꺼져있었다면 다음날 19:00 까지 대기
+
+  ✅ 배터리에서도 실행 (DontStopIfGoingOnBatteries)
+
+  ✅ 인터넷 OFF 시 5분 대기 후 1회 재시도 (러너 내부 처리)
+     → 그래도 OFF면 그 회차 종료 (다음날 다시 시도)
+
+  ✅ 모든 출력 logs\scheduler.log 에 누적 (UTF-8)
+     → tail 또는 메모장으로 확인 가능
+
+  ✅ 단계 실패 시 즉시 중단 (rc 보존, 다음 단계 실행 X)
+
+
+────────────────────────────────────────────────────────────────────
+  등록 (PowerShell — 한 번만 실행)
+────────────────────────────────────────────────────────────────────
+
+  cd C:\Users\sji48\ksat_gang
+  powershell.exe -ExecutionPolicy Bypass -File .\setup_scheduler.ps1
+
+  ※ 관리자 권한 불필요 (현재 사용자 권한으로 동작)
+  ※ 같은 이름 작업이 있으면 -Force 로 덮어씀
+
+
+────────────────────────────────────────────────────────────────────
+  등록 확인
+────────────────────────────────────────────────────────────────────
+
+  # 작업 + 다음 실행 시간 + 직전 결과 코드
+  Get-ScheduledTask -TaskName "KsatGang_*" |
+    Get-ScheduledTaskInfo |
+    Select-Object TaskName, NextRunTime, LastRunTime, LastTaskResult |
+    Format-Table -AutoSize
+
+  # 작업 상세 (트리거/설정/액션)
+  Get-ScheduledTask -TaskName "KsatGang_Daily_Analysis" | Format-List *
+
+
+────────────────────────────────────────────────────────────────────
+  즉시 테스트 실행 (수동)
+────────────────────────────────────────────────────────────────────
+
+  # 분석 파이프라인 (5~15분 소요)
+  Start-ScheduledTask -TaskName "KsatGang_Daily_Analysis"
+
+  # 텔레그램 알림 (10초~)
+  Start-ScheduledTask -TaskName "KsatGang_Daily_Notify"
+
+  # 실행 진행 상태 확인
+  Get-ScheduledTask -TaskName "KsatGang_*" |
+    Get-ScheduledTaskInfo |
+    Format-Table TaskName, LastRunTime, LastTaskResult, NumberOfMissedRuns
+
+  # 실시간 로그 모니터 (PowerShell)
+  Get-Content -Path "C:\Users\sji48\ksat_gang\logs\scheduler.log" -Wait -Tail 30
+
+
+────────────────────────────────────────────────────────────────────
+  취소 / 삭제
+────────────────────────────────────────────────────────────────────
+
+  # 단일 작업 삭제
+  Unregister-ScheduledTask -TaskName "KsatGang_Daily_Analysis" -Confirm:$false
+  Unregister-ScheduledTask -TaskName "KsatGang_Daily_Notify"   -Confirm:$false
+
+  # 두 작업 한 번에 삭제
+  Get-ScheduledTask -TaskName "KsatGang_*" |
+    Unregister-ScheduledTask -Confirm:$false
+
+
+────────────────────────────────────────────────────────────────────
+  비활성화 / 활성화 (삭제 안 하고 일시 중지)
+────────────────────────────────────────────────────────────────────
+
+  # 비활성화
+  Disable-ScheduledTask -TaskName "KsatGang_Daily_Analysis"
+  Disable-ScheduledTask -TaskName "KsatGang_Daily_Notify"
+
+  # 다시 활성화
+  Enable-ScheduledTask -TaskName "KsatGang_Daily_Analysis"
+  Enable-ScheduledTask -TaskName "KsatGang_Daily_Notify"
+
+
+────────────────────────────────────────────────────────────────────
+  시간 변경 (트리거 수정)
+────────────────────────────────────────────────────────────────────
+
+  # 분석을 18:30 으로 옮기는 예
+  $task = Get-ScheduledTask -TaskName "KsatGang_Daily_Analysis"
+  $task.Triggers[0].StartBoundary = (Get-Date "18:30").ToString("s")
+  Set-ScheduledTask -TaskName "KsatGang_Daily_Analysis" -Trigger $task.Triggers
+
+
+────────────────────────────────────────────────────────────────────
+  로그 확인
+────────────────────────────────────────────────────────────────────
+
+  # 최근 50줄
+  Get-Content -Path "C:\Users\sji48\ksat_gang\logs\scheduler.log" -Tail 50
+
+  # 실시간 모니터링 (Ctrl+C 로 종료)
+  Get-Content -Path "C:\Users\sji48\ksat_gang\logs\scheduler.log" -Wait -Tail 20
+
+  # 메모장으로 보기
+  notepad C:\Users\sji48\ksat_gang\logs\scheduler.log
+
+
+────────────────────────────────────────────────────────────────────
+  문제 해결
+────────────────────────────────────────────────────────────────────
+
+  1) "PowerShell 실행 정책" 에러
+     setup_scheduler.ps1 안 -ExecutionPolicy Bypass 로 우회됨.
+     수동 실행 시: powershell -ExecutionPolicy Bypass -File ...
+
+  2) 작업이 실행됐는데 결과 0xFFFFFFFF
+     러너 안에서 종료 코드가 -1 → 보통 인터넷 미복구 / 환경변수 누락.
+     logs\scheduler.log 확인.
+
+  3) 환경변수가 작업에서 안 잡힐 때 (TG_BOT_TOKEN / TG_CHAT_ID)
+     setx 로 등록했는지 + 새 PowerShell 로 setx 후 재로그인 1회.
+     테스트: [Environment]::GetEnvironmentVariable("TG_BOT_TOKEN", "User")
+
+  4) 한국 공휴일 / 주말 — KRX 데이터 없음
+     collector.py daily 가 자동 스킵 (휴장일 인지)
+     filter / strategy / calculator 도 빈 데이터 처리됨
+
+
+[작성됨]
+  C:\Users\sji48\ksat_gang\runner_analysis.ps1   ── 분석 파이프라인 실행기
+  C:\Users\sji48\ksat_gang\runner_notify.ps1     ── 텔레그램 알림 실행기
+  C:\Users\sji48\ksat_gang\setup_scheduler.ps1   ── 작업 2개 등록 스크립트
+  C:\Users\sji48\ksat_gang\scheduler_guide.txt   ── 본 가이드

@@ -1,0 +1,79 @@
+# --- Database (1.1GB, GitHub 100MB 제한 — 절대 커밋 금지) ---
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# --- Logs (별도 보관) ---
+logs/
+*.log
+*.log.*
+
+# --- History (별도 저장소 ksat-gang-history) ---
+history/
+
+# --- Python ---
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+venv/
+env/
+.venv/
+*.egg-info/
+
+# --- Secrets / credentials ---
+.env
+.env.*
+*credentials*
+*token*
+*password*
+*.key
+*.pem
+*.pfx
+
+# --- 분석 결과/캐시 (런타임 데이터) ---
+candidates.json
+candidates_v*.json
+candidates_with_prices.json
+filtered_tickers.json
+backtest_*.json
+backtest_*.txt
+*_checkpoint.json
+checkpoint.json
+dante_rules_*.json
+kospi_index_cache.csv
+
+# --- dante_analysis 산출물 (코드 aggregate.py/batch_processor.py만 보존, 데이터/snapshot은 제외) ---
+dante_analysis/candidates/
+dante_analysis/*.json
+
+# --- Claude Code 로컬 설정 / 메모리 ---
+.claude/
+
+# --- 분석 산출물 텍스트 보고서 ---
+v2_dante_*.txt
+v4_*.txt
+v5_*.txt
+v6_*.txt
+dante_*.txt
+exit_*.txt
+market_rules*.txt
+market_rules*.json
+calc_*.txt
+monthly_pnl_*.txt
+
+# --- 백업/임시 ---
+*.bak
+*.bak_*
+*.tmp
+*.swp
+~$*
+
+# --- OS / IDE ---
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/

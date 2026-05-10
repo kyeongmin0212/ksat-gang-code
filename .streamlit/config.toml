@@ -1,0 +1,18 @@
+# simple_app.py 전용 — Clear caches 단축키/팝업 차단 목적
+# dashboard/app.py 와는 완전 분리됨 (각자의 .streamlit/config.toml 사용)
+
+[client]
+# "viewer" = 우측 상단 메뉴/단축키 모두 숨김 (가장 강력)
+toolbarMode = "viewer"
+
+[runner]
+# 빠른 rerun 동작 끔
+fastReruns = false
+
+[global]
+# 개발 모드 단축키 비활성화
+developmentMode = false
+
+[server]
+# simple_app.py 는 작성 후 빈번한 재로드가 필요 없으니 OFF
+runOnSave = false
